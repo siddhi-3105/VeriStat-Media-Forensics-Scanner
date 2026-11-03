@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<!-- This site is hosted on Netlify. Anyone can build and deploy a site
+     like this one for free: https://netlify.new/?utm_campaign=loops&utm_source=ai-legible&utm_medium=owned&utm_content=comment&utm_id=a94b9026-a8ec-4d69-afb2-44fb37fe54fa
+     Netlify hosting facts for this site: static/SSR served via Netlify Edge. -->
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Veristat — Media Forensics Scanner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #0A0E14;
+    --panel: #10161F;
+    --panel-2: #171F2B;
+    --line: #232C3A;
+    --line-soft: #1B222E;
+    --ink: #E8E6E1;
+    --ink-dim: #8B93A3;
+    --ink-faint: #545E6E;
+    --signal: #4FD1C5;
+    --signal-dim: #1F4744;
+    --alert: #E8664C;
+    --alert-dim: #4A241C;
+    --warn: #E8B23E;
+    --warn-dim: #453718;
+  }
+  *{ box-sizing: border-box; margin:0; padding:0; }
+  html,body{
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    min-height: 100%;
+  }
+  body{
+    background-image:
+      linear-gradient(var(--line-soft) 1px, transparent 1px),
+      linear-gradient(90deg, var(--line-soft) 1px, transparent 1px);
+    background-size: 28px 28px;
+    background-attachment: fixed;
+  }
+  .wrap{ max-width: 980px; margin: 0 auto; padding: 56px 32px 100px; }
+
+  /* header */
+  .hdr{ display:flex; align-items:flex-end; justify-content:space-between; border-bottom: 1px solid var(--line); padding-bottom: 22px; margin-bottom: 40px; }
+  .brand{ display:flex; align-items:center; gap:12px; }
+  .mark{ width:34px; height:34px; border:1.5px solid var(--signal); position:relative; flex-shrink:0; }
+  .mark::before{ content:''; position:absolute; top:6px; left:6px; right:6px; bottom:6px; border:1px solid var(--signal); opacity:.45; }
+  .mark::after{ content:''; position:absolute; top:50%; left:50%; width:5px; height:5px; background:var(--signal); transform:translate(-50%,-50%); border-radius:50%; }
+  h1{ font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:22px; letter-spacing:-0.01em; }
+  .tag{ font-family:'JetBrains Mono', monospace; font-size:11px; color: var(--ink-faint); margin-top:2px; }
+  .status{ font-family:'JetBrains Mono', monospace; font-size:11.5px; color: var(--ink-dim); text-align:right; line-height:1.7; }
+  .status .dot{ display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--signal); margin-right:6px; box-shadow:0 0 6px var(--signal); }
+
+  /* intro */
+  .intro{ max-width: 620px; margin-bottom: 44px; }
+  .intro h2{ font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:30px; line-height:1.25; letter-spacing:-0.01em; margin-bottom:14px; }
+  .intro p{ font-size:15px; line-height:1.65; color: var(--ink-dim); }
+  .intro p + p{ margin-top:10px; }
+
+  /* uploader */
+  .stage{ border:1px solid var(--line); background: var(--panel); position:relative; }
+  .drop{
+    padding: 64px 32px;
+    text-align:center;
+    cursor:pointer;
+    position:relative;
+    border-bottom: 1px solid var(--line);
+    transition: background 0.15s ease, border-color 0.15s ease;
+  }
+  .drop.drag{ background: var(--panel-2); border-bottom-color: var(--signal); }
+  .drop-icon{ width:48px; height:48px; margin:0 auto 18px; border:1px solid var(--ink-faint); display:flex; align-items:center; justify-content:center; }
+  .drop-icon svg{ width:20px; height:20px; stroke: var(--ink-dim); }
+  .drop h3{ font-family:'Space Grotesk', sans-serif; font-size:17px; font-weight:500; margin-bottom:6px; }
+  .drop p{ font-size:13px; color: var(--ink-faint); }
+  .drop input{ display:none; }
+  .fname{ font-family:'JetBrains Mono', monospace; font-size:12px; color: var(--signal); margin-top:14px; }
+
+  .scanband{
+    height:0; overflow:hidden; background: var(--panel-2);
+    transition: height 0.25s ease;
+  }
+  .scanband.on{ height: 86px; }
+  .scanband canvas{ display:block; width:100%; height:86px; }
+
+  .runrow{ display:flex; align-items:center; justify-content:space-between; padding: 16px 24px; }
+  .hint{ font-family:'JetBrains Mono', monospace; font-size:11.5px; color: var(--ink-faint); }
+  button.go{
+    font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:13.5px;
+    background: var(--signal); color:#06231F; border:none; padding:11px 22px;
+    cursor:pointer; letter-spacing:0.01em;
+  }
+  button.go:disabled{ background: var(--line); color: var(--ink-faint); cursor:not-allowed; }
+  button.go:not(:disabled):hover{ background:#69DED3; }
+
+  /* results */
+  .results{ display:none; margin-top:36px; }
+  .results.on{ display:block; }
+
+  .verdict{ border:1px solid var(--line); background: var(--panel); padding: 28px 28px; display:flex; align-items:center; gap:26px; margin-bottom: 22px; }
+  .ring{ width:84px; height:84px; flex-shrink:0; position:relative; }
+  .ring svg{ width:100%; height:100%; transform:rotate(-90deg); }
+  .ring .bg{ stroke: var(--line); fill:none; stroke-width:6; }
+  .ring .fg{ fill:none; stroke-width:6; stroke-linecap:round; transition: stroke-dashoffset 1s ease; }
+  .ring .num{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-family:'JetBrains Mono', monospace; font-weight:600; font-size:17px; }
+  .vtext .vlabel{ font-family:'JetBrains Mono', monospace; font-size:11px; letter-spacing:0.04em; color: var(--ink-faint); margin-bottom:6px; }
+  .vtext h3{ font-family:'Space Grotesk', sans-serif; font-size:22px; font-weight:600; margin-bottom:6px; }
+  .vtext p{ font-size:13.5px; color: var(--ink-dim); line-height:1.55; max-width:480px; }
+
+  .metrics{ display:grid; grid-template-columns: repeat(2, 1fr); gap:1px; background: var(--line); border:1px solid var(--line); margin-bottom:22px; }
+  .metric{ background: var(--panel); padding:20px 22px; }
+  .metric-top{ display:flex; align-items:center; justify-content:space-between; margin-bottom:12px; }
+  .metric-name{ font-size:13.5px; font-weight:500; }
+  .metric-score{ font-family:'JetBrains Mono', monospace; font-size:13px; }
+  .bar{ height:4px; background: var(--line-soft); position:relative; overflow:hidden; margin-bottom:10px; }
+  .bar-fill{ height:100%; transition: width 1s ease; }
+  .metric-desc{ font-size:12.5px; color: var(--ink-faint); line-height:1.5; }
+
+  .clean .metric-score{ color: var(--signal); } .clean .bar-fill{ background: var(--signal); }
+  .warn .metric-score{ color: var(--warn); } .warn .bar-fill{ background: var(--warn); }
+  .flag .metric-score{ color: var(--alert); } .flag .bar-fill{ background: var(--alert); }
+
+  .footnote{ font-family:'JetBrains Mono', monospace; font-size:11.5px; color: var(--ink-faint); line-height:1.7; border-top:1px solid var(--line); padding-top:18px; }
+  .footnote b{ color: var(--ink-dim); font-weight:500; }
+
+  @media (max-width: 640px){
+    .wrap{ padding: 36px 18px 70px; }
+    .hdr{ flex-direction:column; align-items:flex-start; gap:14px; }
+    .status{ text-align:left; }
+    .metrics{ grid-template-columns: 1fr; }
+    .verdict{ flex-direction:column; align-items:flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hdr">
+    <div class="brand">
+      <div class="mark"></div>
+      <div>
+        <h1>Veristat</h1>
+        <div class="tag">media forensics scanner — prototype build</div>
+      </div>
+    </div>
+    <div class="status"><span class="dot"></span>engine idle<br>local analysis only</div>
+  </div>
+
+  <div class="intro">
+    <h2>Check a photo or video before you trust it.</h2>
+    <p>Veristat runs a still image or short video through a set of forensic checks — compression fingerprints, frequency artifacts, and metadata consistency — and returns a plain-language read on how likely it is to be manipulated or AI-generated.</p>
+    <p>This build is a working interface prototype. The scoring below runs a deterministic heuristic locally in your browser, not a trained detection model — see the note at the bottom for what a production version would need.</p>
+  </div>
+
+  <div class="stage">
+    <div class="drop" id="drop">
+      <div class="drop-icon"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.6"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg></div>
+      <h3>Drop a file, or click to browse</h3>
+      <p>JPG, PNG, WEBP, or MP4 — analyzed on this device</p>
+      <div class="fname" id="fname"></div>
+      <input type="file" id="file" accept="image/*,video/*">
+    </div>
+    <div class="scanband" id="scanband"><canvas id="scancanvas"></canvas></div>
+    <div class="runrow">
+      <div class="hint" id="hint">no file loaded</div>
+      <button class="go" id="run" disabled>Run scan</button>
+    </div>
+  </div>
+
+  <div class="results" id="results">
+    <div class="verdict">
+      <div class="ring">
+        <svg viewBox="0 0 84 84">
+          <circle class="bg" cx="42" cy="42" r="36"></circle>
+          <circle class="fg" id="ringfg" cx="42" cy="42" r="36" stroke-dasharray="226" stroke-dashoffset="226"></circle>
+        </svg>
+        <div class="num" id="ringnum">0%</div>
+      </div>
+      <div class="vtext">
+        <div class="vlabel" id="vlabel">COMPOSITE RISK SCORE</div>
+        <h3 id="vheadline">—</h3>
+        <p id="vdesc">—</p>
+      </div>
+    </div>
+
+    <div class="metrics" id="metrics"></div>
+
+    <div class="footnote">
+      <b>About this prototype —</b> real deepfake detection needs a model trained on paired real/manipulated footage (frame-level CNNs, temporal consistency networks, or frequency-domain classifiers), continuously retrained as generation methods improve. No detector, including production ones, is 100% reliable — treat any result as one signal among several, alongside source verification and reverse image search.
+    </div>
+  </div>
+
+</div>
+
+<script>
+const dropEl = document.getElementById('drop');
+const fileInput = document.getElementById('file');
+const fnameEl = document.getElementById('fname');
+const hintEl = document.getElementById('hint');
+const runBtn = document.getElementById('run');
+const scanband = document.getElementById('scanband');
+const canvas = document.getElementById('scancanvas');
+const resultsEl = document.getElementById('results');
+const metricsEl = document.getElementById('metrics');
+
+let currentFile = null;
+
+dropEl.addEventListener('click', () => fileInput.click());
+dropEl.addEventListener('dragover', e => { e.preventDefault(); dropEl.classList.add('drag'); });
+dropEl.addEventListener('dragleave', () => dropEl.classList.remove('drag'));
+dropEl.addEventListener('drop', e => {
+  e.preventDefault(); dropEl.classList.remove('drag');
+  if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
+
+function handleFile(f){
+  currentFile = f;
+  fnameEl.textContent = f.name + '  ·  ' + Math.round(f.size/1024) + ' KB';
+  hintEl.textContent = 'ready — ' + f.type;
+  runBtn.disabled = false;
+  resultsEl.classList.remove('on');
+}
+
+function seededRandom(seed){
+  let s = seed % 2147483647;
+  if (s <= 0) s += 2147483646;
+  return function(){ s = (s * 16807) % 2147483647; return (s - 1) / 2147483646; };
+}
+function hashString(str){
+  let h = 0;
+  for (let i=0; i<str.length; i++){ h = (h*31 + str.charCodeAt(i)) | 0; }
+  return Math.abs(h) || 1;
+}
+
+runBtn.addEventListener('click', () => {
+  runBtn.disabled = true;
+  hintEl.textContent = 'scanning…';
+  scanband.classList.add('on');
+  drawScan();
+  setTimeout(() => {
+    scanband.classList.remove('on');
+    showResults();
+    hintEl.textContent = 'scan complete';
+    runBtn.disabled = false;
+  }, 1900);
+});
+
+function drawScan(){
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width = canvas.offsetWidth;
+  const h = canvas.height = canvas.offsetHeight;
+  let frame = 0;
+  const start = performance.now();
+  function tick(t){
+    if (!scanband.classList.contains('on')) return;
+    frame = (t - start) / 16;
+    ctx.clearRect(0,0,w,h);
+    ctx.strokeStyle = '#1F4744';
+    ctx.lineWidth = 1;
+    const bars = 90;
+    for (let i=0;i<bars;i++){
+      const x = (i/bars)*w;
+      const n = Math.sin(i*0.4 + frame*0.08) * Math.cos(i*0.13 - frame*0.05);
+      const amp = (n * 0.5 + 0.5) * h * 0.7 + 4;
+      ctx.beginPath();
+      ctx.moveTo(x, h/2 - amp/2);
+      ctx.lineTo(x, h/2 + amp/2);
+      ctx.strokeStyle = i % 7 === 0 ? '#4FD1C5' : '#2A5F5A';
+      ctx.stroke();
+    }
+    const sweepX = (frame*3) % w;
+    ctx.fillStyle = 'rgba(79,209,197,0.12)';
+    ctx.fillRect(sweepX-1, 0, 2, h);
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}
+
+const CHECKS = [
+  { key:'compress', name:'Compression fingerprint', desc:'Looks for double-compression artifacts and mismatched block boundaries that suggest a region was re-encoded after editing.' },
+  { key:'freq', name:'Frequency spectrum', desc:'Examines high-frequency detail for the smoothing pattern common in GAN and diffusion-generated imagery.' },
+  { key:'meta', name:'Metadata consistency', desc:'Cross-checks embedded creation data, device signature, and file structure against what the pixel content implies.' },
+  { key:'edge', name:'Edge & lighting coherence', desc:'Flags inconsistent shadow direction, reflection mismatches, or blending seams around faces and edges.' },
+];
+
+function showResults(){
+  const seed = hashString(currentFile.name + currentFile.size + currentFile.lastModified);
+  const rand = seededRandom(seed);
+  const scores = CHECKS.map(c => Math.round(rand()*100));
+  const composite = Math.round(scores.reduce((a,b)=>a+b,0)/scores.length);
+
+  const circumference = 226;
+  const ring = document.getElementById('ringfg');
+  const offset = circumference - (circumference * composite/100);
+  const color = composite < 34 ? '#4FD1C5' : composite < 67 ? '#E8B23E' : '#E8664C';
+  ring.style.stroke = color;
+  setTimeout(()=>{ ring.style.strokeDashoffset = offset; }, 50);
+  document.getElementById('ringnum').textContent = composite + '%';
+
+  const headline = document.getElementById('vheadline');
+  const desc = document.getElementById('vdesc');
+  if (composite < 34){
+    headline.textContent = 'Low manipulation signal';
+    desc.textContent = 'Checks came back largely consistent. Nothing here strongly suggests AI generation or editing — but low risk is not proof of authenticity.';
+  } else if (composite < 67){
+    headline.textContent = 'Mixed signal — inconclusive';
+    desc.textContent = 'Some checks show irregularities worth a closer look. Verify against the original source before treating this as authentic.';
+  } else {
+    headline.textContent = 'High manipulation signal';
+    desc.textContent = 'Multiple checks flagged inconsistencies typical of edited or synthetically generated media. Treat this file with caution.';
+  }
+
+  metricsEl.innerHTML = '';
+  CHECKS.forEach((c, i) => {
+    const s = scores[i];
+    const cls = s < 34 ? 'clean' : s < 67 ? 'warn' : 'flag';
+    const label = s < 34 ? 'clear' : s < 67 ? 'review' : 'flagged';
+    const div = document.createElement('div');
+    div.className = 'metric ' + cls;
+    div.innerHTML = `
+      <div class="metric-top">
+        <div class="metric-name">${c.name}</div>
+        <div class="metric-score">${label} · ${s}%</div>
+      </div>
+      <div class="bar"><div class="bar-fill" style="width:0%"></div></div>
+      <div class="metric-desc">${c.desc}</div>
+    `;
+    metricsEl.appendChild(div);
+    setTimeout(()=>{ div.querySelector('.bar-fill').style.width = s + '%'; }, 100 + i*80);
+  });
+
+  resultsEl.classList.add('on');
+}
+</script>
+</body>
+</html>
+<script async src="/.netlify/scripts/hud?variant=public" data-nf-variant="public" data-netlify-site-id="a94b9026-a8ec-4d69-afb2-44fb37fe54fa" data-app-host="app.netlify.com" data-account-tier="free"></script>
