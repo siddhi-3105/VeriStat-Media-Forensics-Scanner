@@ -20,13 +20,9 @@ VeriStat is a browser-based media forensics scanner designed to analyze images a
 - HTML
 - CSS
 - JavaScript
-- Python (if applicable)
-
+ 
 ### 🚀 Live Demo
 https://ornate-tarsier-75a3a9.netlify.app/
-
-### 📷 Screenshots
-Add screenshots of your application here.
 
 ### ⚠️ Disclaimer
 This project provides heuristic-based analysis and does not guarantee definitive detection of manipulated media. Results should be treated as indicators, not forensic proof.
